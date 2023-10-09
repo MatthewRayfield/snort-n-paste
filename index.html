@@ -1,0 +1,211 @@
+<style>
+    body {
+        font: 20px arial;
+    }
+    #wrapper {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        display: flex;
+        justify-content: left;
+        align-items: center;
+        overflow: scroll;
+    }
+    #text {
+        padding: 10px;
+        outline: none;
+        white-space: nowrap;
+    }
+    #nose {
+        position: absolute;
+        top: 100px;
+        left: 100px;
+        transform: rotate(-10deg);
+    }
+    #nose img {
+        position: relative;
+        z-index: 100;
+        width: 150px;
+    }
+    .nostril.left {
+        position: absolute;
+        bottom: 30px;
+        left: 30px;
+        z-index: 110;
+        width: 3px;
+        height: 3px;
+        background: #f0f;
+    }
+    .snort {
+        position: absolute;
+    }
+</style>
+
+<div id="wrapper">
+    <div id="nose">
+        <img src="nose.png" />
+        <div class="nostril left"></div>
+    </div>
+
+    <div id="text" contenteditable="true">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aenean molestie elementum arcu ultricies aliquam. Nullam scelerisque rutrum aliquet. Nullam pharetra felis et tincidunt pulvinar. Proin id augue convallis, imperdiet leo at, viverra metus. Nulla posuere est orci, at pulvinar justo placerat sagittis. In consectetur pellentesque ex. Duis eu rhoncus mauris. Aliquam erat volutpat. Etiam ullamcorper quam mi, a pellentesque massa tincidunt rutrum. In non purus vitae dolor porttitor efficitur. Aenean feugiat facilisis ipsum et volutpat. Duis tempus venenatis elit ac fermentum. Aliquam commodo dictum nulla sit amet bibendum. Nulla ullamcorper massa at tincidunt auctor. Aenean quis turpis in velit aliquam varius nec eget tellus.</div>
+</div>
+
+<script>
+    const noseElement = document.getElementById('nose');
+    const textElement = document.getElementById('text');
+    const nostrilLeft = document.querySelector('.nostril.left');
+    let dragging = false;
+    let offsetX = 0;
+    let offsetY = 0;
+    let cDown = false;
+    let vDown = false;
+    let spans = [];
+    let snorts = [];
+
+    function normalize(coord) {
+        const magnitude = Math.sqrt(
+            (coord.x * coord.x) + (coord.y * coord.y)
+        );
+
+        return {
+            x: coord.x / magnitude,
+            y: coord.y / magnitude
+        };
+    }
+
+    function calcDistance(coordA, coordB) {
+        const a = coordA.x - coordB.x;
+        const b = coordA.y - coordB.y;
+
+        return Math.hypot(a, b);
+    }
+
+    function spanerize() {
+        const split = textElement.innerText.split('');
+        spans = [];
+
+        textElement.innerHTML = '';
+        split.forEach(letter => {
+            const span = document.createElement('span');
+
+            span.innerHTML = letter;
+            textElement.appendChild(span);
+
+            spans.push(span);
+        });
+    }
+
+    function despanerize() {
+        textElement.innerHTML = textElement.innerText;
+    }
+
+    function loop() {
+        const nostrilRect = nostrilLeft.getBoundingClientRect();
+        const newSnorts = [];
+
+        snorts.forEach(snort => {
+            const snortRect = snort.getBoundingClientRect();
+            const direction = normalize({
+                x: nostrilRect.x - snortRect.x,
+                y: nostrilRect.y - snortRect.y
+            });
+
+            const speed = 7;
+            const x = snortRect.x + (direction.x*speed);
+            const y = snortRect.y + (direction.y*speed);
+
+            snort.style.left = x;
+            snort.style.top = y;
+
+            const distance = calcDistance({x, y}, nostrilRect);
+            if (distance < 15) {
+                snort.style.opacity = 0;
+            }
+            else {
+                newSnorts.push(snort);
+            }
+        });
+
+        snorts = newSnorts;
+
+        if (cDown) {
+            const newSpans = [];
+
+            spans.forEach((span, i) => {
+                const spanRect = span.getBoundingClientRect();
+                const distance = calcDistance(nostrilRect, spanRect);
+
+                if (distance < 50) {
+                    span.className = 'snort';
+                    snorts.push(span);
+                }
+                else {
+                    newSpans.push(span);
+                }
+            });
+
+            spans = newSpans;
+        }
+
+        setTimeout(loop, 1000/60);
+    }
+    loop();
+
+    window.addEventListener('load', () => {
+        document.body.addEventListener('mouseup', () => {
+            dragging = false;
+        }); 
+
+        document.body.addEventListener('mousemove', event => {
+            event.preventDefault();
+
+            if (dragging) {
+                let x = event.pageX + offsetX;
+                let y = event.pageY + offsetY;
+
+                noseElement.style.left = x;
+                noseElement.style.top = y;
+            }
+        });
+
+        noseElement.addEventListener('mousedown', event => {
+            event.preventDefault();
+
+            const rect = nose.getBoundingClientRect();
+
+            offsetX = rect.x - event.pageX;
+            offsetY = rect.y - event.pageY;
+
+            dragging = true;
+        });
+
+        document.body.addEventListener('keydown', event => {
+            if (event.which == 67) {
+                if (!cDown) {
+                    spanerize();
+
+                    const rects = [];
+                    spans.forEach(span => {
+                        rects.push(span.getBoundingClientRect());
+                    });
+                    spans.forEach((span, i) => {
+                        const spanRect = rects[i];
+                        span.style.position = 'absolute';
+                        span.style.left = spanRect.x;
+                        span.style.top = spanRect.y;
+                    });
+
+                    cDown = true;
+                }
+            }
+            if (event.which == 86) vDown = true;
+        });
+
+        document.body.addEventListener('keyup', event => {
+            if (event.which == 67) cDown = false;
+            if (event.which == 86) vDown = false;
+        });
+    });
+</script>
