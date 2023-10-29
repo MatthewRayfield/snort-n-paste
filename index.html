@@ -50,11 +50,14 @@
     </div>
 
     <div id="text" contenteditable="true">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aenean molestie elementum arcu ultricies aliquam. Nullam scelerisque rutrum aliquet. Nullam pharetra felis et tincidunt pulvinar. Proin id augue convallis, imperdiet leo at, viverra metus. Nulla posuere est orci, at pulvinar justo placerat sagittis. In consectetur pellentesque ex. Duis eu rhoncus mauris. Aliquam erat volutpat. Etiam ullamcorper quam mi, a pellentesque massa tincidunt rutrum. In non purus vitae dolor porttitor efficitur. Aenean feugiat facilisis ipsum et volutpat. Duis tempus venenatis elit ac fermentum. Aliquam commodo dictum nulla sit amet bibendum. Nulla ullamcorper massa at tincidunt auctor. Aenean quis turpis in velit aliquam varius nec eget tellus.</div>
+    <div id="snorts"></div>
 </div>
 
 <script>
     const noseElement = document.getElementById('nose');
     const textElement = document.getElementById('text');
+    const textRect = textElement.getBoundingClientRect();
+    const snortsElement = document.getElementById('snorts');
     const nostrilLeft = document.querySelector('.nostril.left');
     let dragging = false;
     let offsetX = 0;
@@ -63,6 +66,8 @@
     let vDown = false;
     let spans = [];
     let snorts = [];
+    let buffer = [];
+    let lastPaste = 0;
 
     function normalize(coord) {
         const magnitude = Math.sqrt(
@@ -88,6 +93,7 @@
 
         textElement.innerHTML = '';
         split.forEach(letter => {
+            if (letter == ' ') letter = '&nbsp;';
             const span = document.createElement('span');
 
             span.innerHTML = letter;
@@ -98,7 +104,9 @@
     }
 
     function despanerize() {
-        textElement.innerHTML = textElement.innerText;
+        let text = textElement.innerText.replace(/\n/g, '');
+        console.log(text);
+        textElement.innerHTML = text;
     }
 
     function loop() {
@@ -106,25 +114,43 @@
         const newSnorts = [];
 
         snorts.forEach(snort => {
-            const snortRect = snort.getBoundingClientRect();
-            const direction = normalize({
-                x: nostrilRect.x - snortRect.x,
-                y: nostrilRect.y - snortRect.y
-            });
+            const snortSpan = snort.span;
 
-            const speed = 7;
-            const x = snortRect.x + (direction.x*speed);
-            const y = snortRect.y + (direction.y*speed);
+            if (snort.direction == 0) {
+                const direction = normalize({
+                    x: nostrilRect.x - snort.x,
+                    y: nostrilRect.y - snort.y
+                });
 
-            snort.style.left = x;
-            snort.style.top = y;
+                const speed = 7;
+                const x = snort.x + (direction.x*speed);
+                const y = snort.y + (direction.y*speed);
 
-            const distance = calcDistance({x, y}, nostrilRect);
-            if (distance < 15) {
-                snort.style.opacity = 0;
+                snortSpan.style.left = snort.x = x;
+                snortSpan.style.top = snort.y = y;
+
+                const distance = calcDistance({x, y}, nostrilRect);
+                if (distance < 15) {
+                    buffer.push(snortSpan.innerText);
+                    snortsElement.removeChild(snortSpan);
+                }
+                else {
+                    newSnorts.push(snort);
+                }
             }
-            else {
-                newSnorts.push(snort);
+            else if (snort.direction == 1) {
+                snort.x += snort.xv;
+                snort.y += snort.yv;
+
+                snortSpan.style.left = snort.x;
+                snortSpan.style.top = snort.y;
+
+                if (snort.y < textRect.y) {
+                    newSnorts.push(snort);
+                }
+                else {
+                    snortsElement.removeChild(snortSpan);
+                }
             }
         });
 
@@ -138,8 +164,22 @@
                 const distance = calcDistance(nostrilRect, spanRect);
 
                 if (distance < 50) {
-                    span.className = 'snort';
-                    snorts.push(span);
+                    const snortSpan = document.createElement('span');
+                    snortSpan.className = 'snort';
+                    const snortRect = span.getBoundingClientRect();
+                    snortSpan.style.left = snortRect.x;
+                    snortSpan.style.top = snortRect.y;
+                    snortSpan.innerHTML = span.innerHTML;
+                    snortsElement.appendChild(snortSpan);
+
+                    snorts.push({
+                        span: snortSpan,
+                        direction: 0,
+                        x: snortRect.x,
+                        y: snortRect.y
+                    });
+
+                    textElement.removeChild(span);
                 }
                 else {
                     newSpans.push(span);
@@ -147,6 +187,36 @@
             });
 
             spans = newSpans;
+        }
+
+        if (vDown) {
+            const now = performance.now();
+            const diff = now - lastPaste;
+
+            if (diff > 20) {
+                const l = buffer.pop();
+                if (l) {
+                    const snortSpan = document.createElement('span');
+                    snortSpan.className = 'snort';
+                    const x = nostrilRect.x;
+                    const y = nostrilRect.y;
+                    snortSpan.style.left = x;
+                    snortSpan.style.top = y;
+                    snortSpan.innerHTML = l;
+                    snortsElement.appendChild(snortSpan);
+
+                    snorts.push({
+                        span: snortSpan,
+                        direction: 1,
+                        x: x,
+                        y: y,
+                        xv: 1*2,
+                        yv: 2*2
+                    });
+
+                    lastPaste = now;
+                }
+            }
         }
 
         setTimeout(loop, 1000/60);
@@ -200,12 +270,45 @@
                     cDown = true;
                 }
             }
-            if (event.which == 86) vDown = true;
+            else if (event.which == 86) vDown = true;
+            else if (event.which == 82) {
+                const nostrilRect = nostrilLeft.getBoundingClientRect();
+                buffer.forEach(l => {
+                    const snortSpan = document.createElement('span');
+                    snortSpan.className = 'snort';
+                    const spread = 15;
+                    const x = nostrilRect.x + ((Math.random()-.5)*spread);
+                    const y = nostrilRect.y + ((Math.random()-.5)*spread);
+                    snortSpan.style.left = x;
+                    snortSpan.style.top = y;
+                    snortSpan.innerHTML = l;
+                    snortsElement.appendChild(snortSpan);
+
+                    snorts.push({
+                        span: snortSpan,
+                        direction: 1,
+                        x: x,
+                        y: y,
+                        xv: (Math.random()-.5)*3+1,
+                        yv: 7+((Math.random()-.5)*2)
+                    });
+                });
+                buffer = [];
+            }
+            else console.log(event.which);
         });
 
         document.body.addEventListener('keyup', event => {
-            if (event.which == 67) cDown = false;
-            if (event.which == 86) vDown = false;
+            if (event.which == 67) {
+                if (cDown) despanerize();
+                cDown = false;
+                console.log(buffer.join(''));
+            }
+            else if (event.which == 86) {
+                if (vDown) despanerize();
+                vDown = false;
+                lastPaste = 0;
+            }
         });
     });
 </script>
