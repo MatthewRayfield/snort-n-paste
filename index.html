@@ -23,6 +23,10 @@
         top: 100px;
         left: 100px;
         transform: rotate(-10deg);
+        cursor: grab;
+    }
+    #nose.grabbing {
+        cursor: grabbing;
     }
     #nose img {
         position: relative;
@@ -60,7 +64,7 @@
     const textRect = textElement.getBoundingClientRect();
     const snortsElement = document.getElementById('snorts');
     const nostrilLeft = document.querySelector('.nostril.left');
-    let dragging = false;
+    let grabbing = false;
     let offsetX = 0;
     let offsetY = 0;
     let cDown = false;
@@ -246,14 +250,10 @@
     loop();
 
     window.addEventListener('load', () => {
-        document.body.addEventListener('mouseup', () => {
-            dragging = false;
-        }); 
-
         document.body.addEventListener('mousemove', event => {
-            event.preventDefault();
+            //event.preventDefault();
 
-            if (dragging) {
+            if (grabbing) {
                 let x = event.pageX + offsetX;
                 let y = event.pageY + offsetY;
 
@@ -265,12 +265,18 @@
         noseElement.addEventListener('mousedown', event => {
             event.preventDefault();
 
-            const rect = nose.getBoundingClientRect();
+            grabbing = !grabbing;
 
-            offsetX = rect.x - event.pageX;
-            offsetY = rect.y - event.pageY;
+            if (grabbing) {
+                noseElement.className = 'grabbing';
 
-            dragging = true;
+                const rect = nose.getBoundingClientRect();
+                offsetX = rect.x - event.pageX;
+                offsetY = rect.y - event.pageY;
+            }
+            else {
+                noseElement.className = '';
+            }
         });
 
         document.body.addEventListener('keydown', event => {
