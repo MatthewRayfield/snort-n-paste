@@ -49,7 +49,8 @@
         <div class="nostril left"></div>
     </div>
 
-    <div id="text" contenteditable="true">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aenean molestie elementum arcu ultricies aliquam. Nullam scelerisque rutrum aliquet. Nullam pharetra felis et tincidunt pulvinar. Proin id augue convallis, imperdiet leo at, viverra metus. Nulla posuere est orci, at pulvinar justo placerat sagittis. In consectetur pellentesque ex. Duis eu rhoncus mauris. Aliquam erat volutpat. Etiam ullamcorper quam mi, a pellentesque massa tincidunt rutrum. In non purus vitae dolor porttitor efficitur. Aenean feugiat facilisis ipsum et volutpat. Duis tempus venenatis elit ac fermentum. Aliquam commodo dictum nulla sit amet bibendum. Nulla ullamcorper massa at tincidunt auctor. Aenean quis turpis in velit aliquam varius nec eget tellus.</div>
+    <div id="text" contenteditable="true">1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890</div>
+    <!--<div id="text" contenteditable="true">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aenean molestie elementum arcu ultricies aliquam. Nullam scelerisque rutrum aliquet. Nullam pharetra felis et tincidunt pulvinar. Proin id augue convallis, imperdiet leo at, viverra metus. Nulla posuere est orci, at pulvinar justo placerat sagittis. In consectetur pellentesque ex. Duis eu rhoncus mauris. Aliquam erat volutpat. Etiam ullamcorper quam mi, a pellentesque massa tincidunt rutrum. In non purus vitae dolor porttitor efficitur. Aenean feugiat facilisis ipsum et volutpat. Duis tempus venenatis elit ac fermentum. Aliquam commodo dictum nulla sit amet bibendum. Nulla ullamcorper massa at tincidunt auctor. Aenean quis turpis in velit aliquam varius nec eget tellus.</div>-->
     <div id="snorts"></div>
 </div>
 
@@ -65,9 +66,11 @@
     let cDown = false;
     let vDown = false;
     let spans = [];
+    let rects = [];
     let snorts = [];
     let buffer = [];
     let lastPaste = 0;
+    let inAir = false;
 
     function normalize(coord) {
         const magnitude = Math.sqrt(
@@ -113,6 +116,11 @@
         const nostrilRect = nostrilLeft.getBoundingClientRect();
         const newSnorts = [];
 
+        if (inAir && !snorts.length) {
+            despanerize();
+            inAir = false;
+        }
+
         snorts.forEach(snort => {
             const snortSpan = snort.span;
 
@@ -149,6 +157,19 @@
                     newSnorts.push(snort);
                 }
                 else {
+                    spans.forEach((span, i) => {
+                        const rect = span.getBoundingClientRect();
+                        const xa = rect.x;
+                        const xb = xa + rect.width;
+
+                        if (snort.x >= xa && snort.x < xb) {
+                            const span = spans[i];
+                            const newSpan = document.createElement('span');
+                            newSpan.innerHTML = snortSpan.innerText;
+                            textElement.insertBefore(newSpan, span);
+                            spans.push(newSpan);
+                        }
+                    });
                     snortsElement.removeChild(snortSpan);
                 }
             }
@@ -196,6 +217,7 @@
             if (diff > 20) {
                 const l = buffer.pop();
                 if (l) {
+                    inAir = true;
                     const snortSpan = document.createElement('span');
                     snortSpan.className = 'snort';
                     const x = nostrilRect.x;
@@ -255,8 +277,7 @@
             if (event.which == 67) {
                 if (!cDown) {
                     spanerize();
-
-                    const rects = [];
+                    rects = [];
                     spans.forEach(span => {
                         rects.push(span.getBoundingClientRect());
                     });
@@ -266,11 +287,15 @@
                         span.style.left = spanRect.x;
                         span.style.top = spanRect.y;
                     });
-
                     cDown = true;
                 }
             }
-            else if (event.which == 86) vDown = true;
+            else if (event.which == 86) {
+                if (!vDown) {
+                    spanerize();
+                    vDown = true;
+                }
+            }
             else if (event.which == 82) {
                 const nostrilRect = nostrilLeft.getBoundingClientRect();
                 buffer.forEach(l => {
@@ -305,7 +330,7 @@
                 console.log(buffer.join(''));
             }
             else if (event.which == 86) {
-                if (vDown) despanerize();
+                if (vDown && !inAir) despanerize();
                 vDown = false;
                 lastPaste = 0;
             }
