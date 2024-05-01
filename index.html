@@ -22,11 +22,13 @@
         position: absolute;
         top: 100px;
         left: 100px;
-        transform: rotate(-10deg);
         cursor: grab;
     }
     #nose.grabbing {
         cursor: grabbing;
+    }
+    #nose .inner {
+        transform: rotate(-10deg);
     }
     #nose img {
         position: relative;
@@ -49,12 +51,14 @@
 
 <div id="wrapper">
     <div id="nose">
-        <img src="nose.png" />
-        <div class="nostril left"></div>
+        <div class="inner">
+            <img src="nose.png" />
+            <div class="nostril left"></div>
+        </div>
     </div>
 
-    <div id="text" contenteditable="true">1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890</div>
-    <!--<div id="text" contenteditable="true">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aenean molestie elementum arcu ultricies aliquam. Nullam scelerisque rutrum aliquet. Nullam pharetra felis et tincidunt pulvinar. Proin id augue convallis, imperdiet leo at, viverra metus. Nulla posuere est orci, at pulvinar justo placerat sagittis. In consectetur pellentesque ex. Duis eu rhoncus mauris. Aliquam erat volutpat. Etiam ullamcorper quam mi, a pellentesque massa tincidunt rutrum. In non purus vitae dolor porttitor efficitur. Aenean feugiat facilisis ipsum et volutpat. Duis tempus venenatis elit ac fermentum. Aliquam commodo dictum nulla sit amet bibendum. Nulla ullamcorper massa at tincidunt auctor. Aenean quis turpis in velit aliquam varius nec eget tellus.</div>-->
+    <!--<div id="text" contenteditable="true">1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890</div>-->
+    <div id="text" contenteditable="true">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aenean molestie elementum arcu ultricies aliquam. Nullam scelerisque rutrum aliquet. Nullam pharetra felis et tincidunt pulvinar. Proin id augue convallis, imperdiet leo at, viverra metus. Nulla posuere est orci, at pulvinar justo placerat sagittis. In consectetur pellentesque ex. Duis eu rhoncus mauris. Aliquam erat volutpat. Etiam ullamcorper quam mi, a pellentesque massa tincidunt rutrum. In non purus vitae dolor porttitor efficitur. Aenean feugiat facilisis ipsum et volutpat. Duis tempus venenatis elit ac fermentum. Aliquam commodo dictum nulla sit amet bibendum. Nulla ullamcorper massa at tincidunt auctor. Aenean quis turpis in velit aliquam varius nec eget tellus.</div>
     <div id="snorts"></div>
 </div>
 
@@ -112,7 +116,6 @@
 
     function despanerize() {
         let text = textElement.innerText.replace(/\n/g, '');
-        console.log(text);
         textElement.innerHTML = text;
     }
 
@@ -157,7 +160,7 @@
                 snortSpan.style.left = snort.x;
                 snortSpan.style.top = snort.y;
 
-                if (snort.y < textRect.y) {
+                if (snort.y < (textRect.y + 10)) {
                     newSnorts.push(snort);
                 }
                 else {
@@ -166,11 +169,11 @@
                         const xa = rect.x;
                         const xb = xa + rect.width;
 
-                        if (snort.x >= xa && snort.x < xb) {
+                        if (snort.x >= xa && (snort.x < xb || i == spans.length - 1)) {
                             const span = spans[i];
                             const newSpan = document.createElement('span');
                             newSpan.innerHTML = snortSpan.innerText;
-                            textElement.insertBefore(newSpan, span);
+                            span.after(newSpan);
                             spans.push(newSpan);
                         }
                     });
@@ -251,9 +254,9 @@
 
     window.addEventListener('load', () => {
         document.body.addEventListener('mousemove', event => {
-            //event.preventDefault();
-
             if (grabbing) {
+                event.preventDefault();
+
                 let x = event.pageX + offsetX;
                 let y = event.pageY + offsetY;
 
@@ -265,22 +268,22 @@
         noseElement.addEventListener('mousedown', event => {
             event.preventDefault();
 
-            grabbing = !grabbing;
+            textElement.blur();
+            grabbing = true;
+            noseElement.className = 'grabbing';
 
-            if (grabbing) {
-                noseElement.className = 'grabbing';
+            const rect = nose.getBoundingClientRect();
+            offsetX = rect.x - event.pageX;
+            offsetY = rect.y - event.pageY;
+        });
 
-                const rect = nose.getBoundingClientRect();
-                offsetX = rect.x - event.pageX;
-                offsetY = rect.y - event.pageY;
-            }
-            else {
-                noseElement.className = '';
-            }
+        document.body.addEventListener('mouseup', event => {
+            grabbing = false;
+            noseElement.className = '';
         });
 
         document.body.addEventListener('keydown', event => {
-            if (event.which == 67) {
+            if (event.which == 67) { // c
                 if (!cDown) {
                     spanerize();
                     rects = [];
@@ -296,46 +299,50 @@
                     cDown = true;
                 }
             }
-            else if (event.which == 86) {
+            else if (event.which == 86) { // v
                 if (!vDown) {
                     spanerize();
                     vDown = true;
                 }
             }
-            else if (event.which == 82) {
-                const nostrilRect = nostrilLeft.getBoundingClientRect();
-                buffer.forEach(l => {
-                    const snortSpan = document.createElement('span');
-                    snortSpan.className = 'snort';
-                    const spread = 15;
-                    const x = nostrilRect.x + ((Math.random()-.5)*spread);
-                    const y = nostrilRect.y + ((Math.random()-.5)*spread);
-                    snortSpan.style.left = x;
-                    snortSpan.style.top = y;
-                    snortSpan.innerHTML = l;
-                    snortsElement.appendChild(snortSpan);
+            else if (event.which == 82) { // r
+                if (buffer.length) {
+                    spanerize();
+                    inAir = true;
+                    const nostrilRect = nostrilLeft.getBoundingClientRect();
+                    buffer.forEach(l => {
+                        const snortSpan = document.createElement('span');
+                        snortSpan.className = 'snort';
+                        const spread = 15;
+                        const x = nostrilRect.x + ((Math.random()-.5)*spread);
+                        const y = nostrilRect.y + ((Math.random()-.5)*spread);
+                        snortSpan.style.left = x;
+                        snortSpan.style.top = y;
+                        snortSpan.innerHTML = l;
+                        snortsElement.appendChild(snortSpan);
 
-                    snorts.push({
-                        span: snortSpan,
-                        direction: 1,
-                        x: x,
-                        y: y,
-                        xv: (Math.random()-.5)*3+1,
-                        yv: 7+((Math.random()-.5)*2)
+                        snorts.push({
+                            span: snortSpan,
+                            direction: 1,
+                            x: x,
+                            y: y,
+                            xv: (Math.random()-.5)*3+1,
+                            yv: 7+((Math.random()-.5)*2)
+                        });
                     });
-                });
-                buffer = [];
+                    buffer = [];
+                }
             }
             else console.log(event.which);
         });
 
         document.body.addEventListener('keyup', event => {
-            if (event.which == 67) {
+            if (event.which == 67) { // c
                 if (cDown) despanerize();
                 cDown = false;
                 console.log(buffer.join(''));
             }
-            else if (event.which == 86) {
+            else if (event.which == 86) { // v
                 if (vDown && !inAir) despanerize();
                 vDown = false;
                 lastPaste = 0;
