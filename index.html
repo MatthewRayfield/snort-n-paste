@@ -9,14 +9,22 @@
         width: 100vw;
         height: 100vh;
         display: flex;
-        justify-content: left;
+        justify-content: center;
         align-items: center;
+        overflow: hidden;
+    }
+    .input {
+        display: inline-block;
+        border: 1px solid #aaa;
+        margin: 10px;
+        box-shadow: inset 0 1px 3px #aaa;
+        width: 50em;
         overflow: scroll;
     }
-    #text {
-        padding: 10px;
+    .text {
         outline: none;
         white-space: nowrap;
+        padding: 10px;
     }
     #nose {
         position: absolute;
@@ -28,16 +36,27 @@
         cursor: grabbing;
     }
     #nose .inner {
+        position: relative;
         transform: rotate(-10deg);
+    }
+    #nose .inner .center {
+        position: absolute;
+        top: 0;
+        left: 0;
+        z-index: 120;
+        width: 100%;
+        height: 100%;
+        background: radial-gradient(#f003 0px, #f003 3px, #f000 3px);
     }
     #nose img {
         position: relative;
+        top: 55px;
         z-index: 100;
         width: 150px;
     }
     .nostril.left {
         position: absolute;
-        bottom: 30px;
+        top: 200px;
         left: 30px;
         z-index: 110;
         width: 3px;
@@ -52,19 +71,23 @@
 <div id="wrapper">
     <div id="nose">
         <div class="inner">
+            <div class="center"></div>
             <img src="nose.png" />
             <div class="nostril left"></div>
         </div>
     </div>
 
-    <!--<div id="text" contenteditable="true">1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890</div>-->
-    <div id="text" contenteditable="true">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aenean molestie elementum arcu ultricies aliquam. Nullam scelerisque rutrum aliquet. Nullam pharetra felis et tincidunt pulvinar. Proin id augue convallis, imperdiet leo at, viverra metus. Nulla posuere est orci, at pulvinar justo placerat sagittis. In consectetur pellentesque ex. Duis eu rhoncus mauris. Aliquam erat volutpat. Etiam ullamcorper quam mi, a pellentesque massa tincidunt rutrum. In non purus vitae dolor porttitor efficitur. Aenean feugiat facilisis ipsum et volutpat. Duis tempus venenatis elit ac fermentum. Aliquam commodo dictum nulla sit amet bibendum. Nulla ullamcorper massa at tincidunt auctor. Aenean quis turpis in velit aliquam varius nec eget tellus.</div>
+    <div class="input">
+        <div class="text" contenteditable="true">if you have any questions the nose knows.</div>
+        <!--<div class="text" contenteditable="true">123456789012345678901234567890123456789012345678901234567890</div>-->
+        <!--<div id="text" contenteditable="true">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aenean molestie elementum arcu ultricies aliquam. Nullam scelerisque rutrum aliquet. Nullam pharetra felis et tincidunt pulvinar. Proin id augue convallis, imperdiet leo at, viverra metus. Nulla posuere est orci, at pulvinar justo placerat sagittis. In consectetur pellentesque ex. Duis eu rhoncus mauris. Aliquam erat volutpat. Etiam ullamcorper quam mi, a pellentesque massa tincidunt rutrum. In non purus vitae dolor porttitor efficitur. Aenean feugiat facilisis ipsum et volutpat. Duis tempus venenatis elit ac fermentum. Aliquam commodo dictum nulla sit amet bibendum. Nulla ullamcorper massa at tincidunt auctor. Aenean quis turpis in velit aliquam varius nec eget tellus.</div>-->
+    </div>
     <div id="snorts"></div>
 </div>
 
 <script>
     const noseElement = document.getElementById('nose');
-    const textElement = document.getElementById('text');
+    const textElement = document.querySelector('.text');
     const textRect = textElement.getBoundingClientRect();
     const snortsElement = document.getElementById('snorts');
     const nostrilLeft = document.querySelector('.nostril.left');
@@ -128,10 +151,11 @@
             inAir = false;
         }
 
+        // movement:
         snorts.forEach(snort => {
             const snortSpan = snort.span;
 
-            if (snort.direction == 0) {
+            if (snort.direction == 0) { // upward
                 const direction = normalize({
                     x: nostrilRect.x - snort.x,
                     y: nostrilRect.y - snort.y
@@ -153,37 +177,49 @@
                     newSnorts.push(snort);
                 }
             }
-            else if (snort.direction == 1) {
+            else if (snort.direction == 1) { // downward
                 snort.x += snort.xv;
                 snort.y += snort.yv;
 
                 snortSpan.style.left = snort.x;
                 snortSpan.style.top = snort.y;
 
-                if (snort.y < (textRect.y + 10)) {
-                    newSnorts.push(snort);
-                }
-                else {
-                    spans.forEach((span, i) => {
-                        const rect = span.getBoundingClientRect();
-                        const xa = rect.x;
-                        const xb = xa + rect.width;
+                if (snort.x >= textRect.left && snort.x <= textRect.right && snort.y >= textRect.top && snort.y <= textRect.bottom) {
+                    const newSpan = document.createElement('span');
+                    newSpan.innerHTML = snortSpan.innerText;
 
-                        if (snort.x >= xa && (snort.x < xb || i == spans.length - 1)) {
-                            const span = spans[i];
-                            const newSpan = document.createElement('span');
-                            newSpan.innerHTML = snortSpan.innerText;
-                            span.after(newSpan);
-                            spans.push(newSpan);
-                        }
-                    });
+                    if (!spans.length) {
+                        textElement.appendChild(newSpan);
+                        spans.unshift(newSpan);
+                    }
+                    else {
+                        spans.forEach((span, i) => {
+                            const rect = span.getBoundingClientRect();
+                            const xa = rect.x;
+                            const xb = xa + rect.width;
+
+                            if (i == 0 && snort.x < xa) {
+                                span.before(newSpan);
+                                spans.unshift(newSpan);
+                            }
+                            else if (snort.x >= xa && (snort.x < xb || i == spans.length - 1)) {
+                                span.after(newSpan);
+                                spans.push(newSpan);
+                            }
+                        });
+                    }
+
                     snortsElement.removeChild(snortSpan);
+                }
+                else if (snort.y < window.innerHeight + 50) {
+                    newSnorts.push(snort);
                 }
             }
         });
 
         snorts = newSnorts;
 
+        // copy:
         if (cDown) {
             const newSpans = [];
 
@@ -217,13 +253,15 @@
             spans = newSpans;
         }
 
+        // paste:
         if (vDown) {
             const now = performance.now();
             const diff = now - lastPaste;
 
-            if (diff > 20) {
+            if (diff > 50) {
                 const l = buffer.pop();
                 if (l) {
+                    const speed = 3;
                     inAir = true;
                     const snortSpan = document.createElement('span');
                     snortSpan.className = 'snort';
@@ -239,8 +277,8 @@
                         direction: 1,
                         x: x,
                         y: y,
-                        xv: 1*2,
-                        yv: 2*2
+                        xv: 1*speed,
+                        yv: 2*speed
                     });
 
                     lastPaste = now;
@@ -320,14 +358,15 @@
                         snortSpan.style.top = y;
                         snortSpan.innerHTML = l;
                         snortsElement.appendChild(snortSpan);
+                        const speed = 1.5;
 
                         snorts.push({
                             span: snortSpan,
                             direction: 1,
                             x: x,
                             y: y,
-                            xv: (Math.random()-.5)*3+1,
-                            yv: 7+((Math.random()-.5)*2)
+                            xv: ((Math.random()-.5)*3+1)*speed,
+                            yv: (7+((Math.random()-.5)*2))*speed
                         });
                     });
                     buffer = [];
@@ -340,7 +379,6 @@
             if (event.which == 67) { // c
                 if (cDown) despanerize();
                 cDown = false;
-                console.log(buffer.join(''));
             }
             else if (event.which == 86) { // v
                 if (vDown && !inAir) despanerize();
