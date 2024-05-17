@@ -24,11 +24,13 @@
         margin: 10px;
         /*box-shadow: inset 0 1px 2px #ccc;*/
         width: 30em;
-        overflow: scroll;
+        overflow: hidden;
         background: #fff;
         border-radius: 5px;
+        white-space: nowrap;
     }
     .text {
+        position: relative;
         outline: none;
         white-space: nowrap;
         padding: 10px;
@@ -62,26 +64,23 @@
         z-index: 100;
         width: 150px;
     }
-    .nostril.left {
+    .nostril {
         position: absolute;
         top: 200px;
-        left: 30px;
         z-index: 110;
         width: 3px;
         height: 3px;
         /*background: #f0f;*/
     }
+    .nostril.left {
+        left: 30px;
+    }
     .nostril.right {
-        position: absolute;
-        top: 200px;
         right: 30px;
-        z-index: 110;
-        width: 3px;
-        height: 3px;
-        /*background: #f0f;*/
     }
     .snort {
         position: absolute;
+        z-index: 110;
     }
     footer {
         position: absolute;
@@ -101,13 +100,13 @@
     </div>
 
     <div class="input">
-        <div class="text" contenteditable="true">if you have any questions the nose knows.</div>
+        <!--<div class="text" contenteditable="true">if you have any questions the nose knows.</div>-->
         <!--<div class="text" contenteditable="true">123456789012345678901234567890123456789012345678901234567890</div>-->
-        <!--<div id="text" contenteditable="true">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aenean molestie elementum arcu ultricies aliquam. Nullam scelerisque rutrum aliquet. Nullam pharetra felis et tincidunt pulvinar. Proin id augue convallis, imperdiet leo at, viverra metus. Nulla posuere est orci, at pulvinar justo placerat sagittis. In consectetur pellentesque ex. Duis eu rhoncus mauris. Aliquam erat volutpat. Etiam ullamcorper quam mi, a pellentesque massa tincidunt rutrum. In non purus vitae dolor porttitor efficitur. Aenean feugiat facilisis ipsum et volutpat. Duis tempus venenatis elit ac fermentum. Aliquam commodo dictum nulla sit amet bibendum. Nulla ullamcorper massa at tincidunt auctor. Aenean quis turpis in velit aliquam varius nec eget tellus.</div>-->
+        <div class="text" contenteditable="true">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aenean molestie elementum arcu ultricies aliquam. Nullam scelerisque rutrum aliquet. Nullam pharetra felis et tincidunt pulvinar. Proin id augue convallis, imperdiet leo at, viverra metus. Nulla posuere est orci, at pulvinar justo placerat sagittis. In consectetur pellentesque ex. Duis eu rhoncus mauris. Aliquam erat volutpat. Etiam ullamcorper quam mi, a pellentesque massa tincidunt rutrum. In non purus vitae dolor porttitor efficitur. Aenean feugiat facilisis ipsum et volutpat. Duis tempus venenatis elit ac fermentum. Aliquam commodo dictum nulla sit amet bibendum. Nulla ullamcorper massa at tincidunt auctor. Aenean quis turpis in velit aliquam varius nec eget tellus.</div>
     </div>
     <div id="snorts"></div>
 
-    <footer>snort 'n' paste &nbsp; &mdash; &nbsp; grab the nose. &nbsp; c to snort. &nbsp; v to de-snort. &nbsp; r to rocket. &nbsp; &mdash; &nbsp; by <a href="https://matthew.rayfield.world">matthew rayfield</a> in 2024</footer>
+    <footer><a href="https://github.com/MatthewRayfield/snort-n-paste">snort 'n' paste</a> &nbsp; &mdash; &nbsp; grab the nose. &nbsp; c to snort. &nbsp; v to de-snort. &nbsp; r to rocket. &nbsp; &mdash; &nbsp; by <a href="https://matthew.rayfield.world">matthew rayfield</a> in 2024</footer>
 </div>
 
 <script>
@@ -124,7 +123,6 @@
     let cDown = false;
     let vDown = false;
     let spans = [];
-    let rects = [];
     let snorts = [];
     let buffer = [];
     let lastPaste = 0;
@@ -200,7 +198,7 @@
                 snortSpan.style.top = snort.y = y;
 
                 const distance = calcDistance({x, y}, nostrilRect);
-                if (distance < 15) {
+                if (distance < 5) {
                     buffer.push(snortSpan.innerText);
                     snortsElement.removeChild(snortSpan);
                 }
@@ -221,9 +219,11 @@
 
                     if (!spans.length) {
                         textElement.appendChild(newSpan);
-                        spans.unshift(newSpan);
+                        spans.push(newSpan);
                     }
                     else {
+                        let placed = false;
+
                         spans.forEach((span, i) => {
                             const rect = span.getBoundingClientRect();
                             const xa = rect.x;
@@ -232,12 +232,19 @@
                             if (i == 0 && snort.x < xa) {
                                 span.before(newSpan);
                                 spans.unshift(newSpan);
+                                placed = true;
                             }
-                            else if (snort.x >= xa && (snort.x < xb || i == spans.length - 1)) {
+                            else if (snort.x >= xa && snort.x < xb) {
                                 span.after(newSpan);
-                                spans.push(newSpan);
+                                spans.splice(i+1, 0, newSpan);
+                                placed = true;
                             }
                         });
+
+                        if (!placed) {
+                            textElement.appendChild(newSpan);
+                            spans.push(newSpan);
+                        }
                     }
 
                     snortsElement.removeChild(snortSpan);
@@ -380,16 +387,18 @@
 
             if (event.which == 67) { // c
                 if (!cDown) {
+                    const textRect = textElement.getBoundingClientRect();
+                    const rects = [];
+
                     spanerize();
-                    rects = [];
                     spans.forEach(span => {
                         rects.push(span.getBoundingClientRect());
                     });
                     spans.forEach((span, i) => {
                         const spanRect = rects[i];
                         span.style.position = 'absolute';
-                        span.style.left = spanRect.x;
-                        span.style.top = spanRect.y;
+                        span.style.left = spanRect.x - textRect.x;
+                        span.style.top = spanRect.y - textRect.y;
                     });
                     cDown = true;
                 }
@@ -429,7 +438,6 @@
                     buffer = [];
                 }
             }
-            else console.log(event.which);
         });
 
         document.body.addEventListener('keyup', event => {
